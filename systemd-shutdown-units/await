@@ -1,0 +1,17 @@
+#!/bin/bash
+
+cleanup() {
+  trap - SIGINT SIGTERM
+  echo "cleaning..."
+  for i in {1..3}; do
+    sleep 5s
+    echo "waiting..."
+  done
+
+  echo "done"
+}
+
+trap cleanup SIGINT SIGTERM
+
+echo "Awaiting signals"
+sleep infinity & wait $!

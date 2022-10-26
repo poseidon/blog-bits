@@ -1,0 +1,11 @@
+[Unit]
+Description=Clean on shutdown
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/cleanup
+
+[Install]
+WantedBy=shutdown.target

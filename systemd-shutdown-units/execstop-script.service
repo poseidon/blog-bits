@@ -1,0 +1,13 @@
+[Unit]
+Description=Clean on shutdown
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=/usr/local/bin/cleanup
+
+[Install]
+WantedBy=multi-user.target
+

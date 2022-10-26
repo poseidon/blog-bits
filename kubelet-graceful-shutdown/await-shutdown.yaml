@@ -1,0 +1,71 @@
+# Copyright (C) 2022 Poseidon Labs
+# Copyright (C) 2022 Dalton Hubble
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+variant: fcos
+version: 1.4.0
+systemd:
+  units:
+    - name: clean.service
+      contents: |
+        [Unit]
+        Description=Clean on shutdown
+        After=multi-user.target
+        [Service]
+        Type=simple
+        ExecStartPre=-/usr/bin/podman rm clean
+        ExecStart=/usr/bin/podman run \
+          --name clean \
+          --network host \
+          --log-driver=k8s-file \
+          -v /var/lib/kubelet:/var/lib/kubelet:ro,z \
+          -v /usr/local/bin:/scripts \
+          --stop-timeout=60 \
+          --entrypoint /scripts/await \
+          quay.io/poseidon/kubelet:v1.25.3
+        ExecStop=/usr/bin/podman stop clean
+        TimeoutStopSec=0
+        SuccessExitStatus=143
+        [Install]
+        WantedBy=multi-user.target
+    - name: clean.path
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Watch for Kubelet kubeconfig
+        [Path]
+        PathExists=/var/lib/kubelet/kubeconfig
+        [Install]
+        WantedBy=multi-user.target
+storage:
+  files:
+    - path: /usr/local/bin/await
+      mode: 0544
+      contents:
+        inline: |
+          #!/bin/bash
+          export KUBECONFIG=/var/lib/kubelet/kubeconfig
+
+          cleanup() {
+            trap - SIGINT SIGTERM
+            echo "cleaning..."
+
+            kubectl describe node $HOSTNAME
+
+            echo "draining..."
+            kubectl drain $HOSTNAME --ignore-daemonsets --delete-emptydir-data
+
+            echo "deleting node..."
+            kubectl delete node $HOSTNAME
+
+            echo "done"
+          }
+
+          trap cleanup SIGINT SIGTERM
+
+          echo "uncordon node..."
+          kubectl uncordon $HOSTNAME || true
+          echo "Awaiting signals"
+          sleep infinity & wait $!

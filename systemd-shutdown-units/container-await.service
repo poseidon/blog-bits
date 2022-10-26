@@ -1,0 +1,21 @@
+[Unit]
+Description=Clean on shutdown
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/podman rm clean
+ExecStart=/usr/bin/podman run \
+  --name clean \
+  --log-driver=k8s-file \
+  --rm \
+  -v /usr/local/bin:/scripts \
+  --stop-timeout=60 \
+  --entrypoint /scripts/await \
+  docker.io/fedora:36
+ExecStop=/usr/bin/podman stop clean
+TimeoutStopSec=0
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
